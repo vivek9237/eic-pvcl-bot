@@ -168,7 +168,7 @@ def prepare_master_report(master_dict):
             row = row + 1
     xlsxFile.close()
 
-create_result_dirs():
+def create_result_dirs():
     print("Creating result directories <under construction>")
 
 def print_eta():
@@ -189,6 +189,7 @@ def main():
     create_result_dirs()
     eic_login(url,username,password)
     start_feature_based_testing()
+    driver.close();
     prepare_master_report(master_report)
 
 if __name__ == "__main__":
