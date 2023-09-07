@@ -4,13 +4,18 @@ import time
 import xlsxwriter
 import configparser
 from PIL import Image
+import os
+import shutil
+
 
 config = configparser.ConfigParser()
 config.read('../configurations/config.ini')
 
+result_dir = "../results"
 report_name = config['DEFAULT']['REPORT_NAME']
 config_delimiter = config['DEFAULT']['DELIMITER']
 conservative_traversal = config['DEFAULT']['CONSERVATIVE_TRAVERSAL'].lower() == 'true'
+save_screenshots = config['DEFAULT']['SAVE_SCREENSHOTS'].lower() == 'true'
 
 connection_page_url = config['EIC_PAGES']['CONNECTION_SEARCH_PAGE']
 data_analyzer_page_url = config['EIC_PAGES']['DATA_ANALYZER_PAGE']
@@ -251,7 +256,8 @@ def check_data_analyzer():
     master_query_list.append(data_analyzer_report_header)
     try:
         open_data_analyzer_page()
-        driver.save_screenshot("../results/data_analyzer/before_running_query.png")
+        if(save_screenshots):
+            driver.save_screenshot(result_dir+"/data_analyzer_before_running_query.png")
         query_csv = config['DATA_ANALYZER']['QUERY']
         query_list = query_csv.split(";")
         count = 1
@@ -267,10 +273,12 @@ def check_data_analyzer():
                     master_query_list.append(temp_result_list)
                     print(query_string.strip() +" = "+str(error))
                 finally:
-                    driver.save_screenshot("../results/data_analyzer/after_running_query"+str(count)+".png")
+                    if(save_screenshots):
+                        driver.save_screenshot(result_dir+"/data_analyzer_after_running_query"+str(count)+".png")
                     count = count + 1
     except Exception as error1:
-        driver.save_screenshot("../results/data_analyzer/unknown_error.png")
+        if(save_screenshots):
+            driver.save_screenshot("../results/data_analyzer_unknown_error.png")
         print(error1)
     master_report["DATA_ANALYZER"] = master_query_list
 
@@ -286,9 +294,11 @@ def check_connections():
             temp_result_list = [connection_name,connection_status]
             master_connection_list.append(temp_result_list)
             print(connection_name+" - "+connection_status)
-            driver.save_screenshot("../results/connections/tested/"+connection_name+".png")
+            if(save_screenshots):
+                driver.save_screenshot(result_dir+"/connections_tested_"+connection_name+".png")
         except:
-            driver.save_screenshot("../results/connections/intervention_required/"+connection_name+".png")
+            if(save_screenshots):
+                driver.save_screenshot(result_dir+"/connections_intervention_required_"+connection_name+".png")
             temp_result_list = [connection_name,"**Manual intervention required**"]
             master_connection_list.append(temp_result_list)
             print("Some error occured for Connection - "+connection_name)
@@ -301,7 +311,8 @@ def check_jcp():
     try:
         open_jcp_page()
         resumeAllJobsButtonPresent = True
-        driver.save_screenshot("../results/job_control_panel/jcp.png")
+        if(save_screenshots):
+            driver.save_screenshot(result_dir+"/job_control_panel_jcp.png")
         addNewJobButton = driver.find_element("xpath",'//*[@onclick="createFlatJob()"]')
         try:
             resumeAllJobsButton = driver.find_element("xpath",'//*[@onclick="disableAllJobs(false)"]')
@@ -438,7 +449,7 @@ def start_feature_based_testing():
             print("Error while testing - "+feature_name)  
         
 def prepare_master_report(master_dict):
-    xlsxFile = xlsxwriter.Workbook("../results/"+report_name)
+    xlsxFile = xlsxwriter.Workbook(result_dir+"/"+report_name)
     for sheet_name in master_dict:
         temp_sheet = xlsxFile.add_worksheet(sheet_name)
         row = 0
@@ -451,7 +462,20 @@ def prepare_master_report(master_dict):
     xlsxFile.close()
 
 def create_result_dirs():
-    print("Creating result directories <under construction>")
+    if os.path.exists(result_dir) and os.path.isdir(result_dir):
+        print(f"The folder '{result_dir}' exists.")
+        print("Deleting underlying files....")
+        for item in os.listdir(result_dir):
+            item_path = os.path.join(result_dir, item)
+            # Check if it's a file or a subdirectory
+            if os.path.isfile(item_path):
+                os.remove(item_path)  # Delete file
+            elif os.path.isdir(item_path):
+                shutil.rmtree(item_path)  # Delete subdirectory and its contents
+    else:
+        print(f"The folder '{result_dir}' does not exist.")
+        print("Creating a new folder "+result_dir+"....")
+        os.makedirs(result_dir)
 
 def print_eta():
     print("ETA : "+"<under construction>")
@@ -461,7 +485,7 @@ def main():
     create_result_dirs()
     eic_login(url,username,password)
     start_feature_based_testing()
-    driver.close();
+    driver.close()
     prepare_master_report(master_report)
 
 if __name__ == "__main__":
